@@ -34,9 +34,9 @@ public class Absolute {
         Absolute[] res = new Absolute[accel.length];
         for (int i = 0; i < accel.length; ++i) {
             Movement a = accel[i];
-            x += velX*a.t;
-            y += velY*a.t;
-            z += velZ*a.t;
+            x += velX*a.t + 0.5 * a.x * a.t * a.t;
+            y += velY*a.t + 0.5 * a.y * a.t * a.t;
+            z += velZ*a.t + 0.5 * a.z * a.t * a.t;
             velX += a.x*a.t;
             velY += a.y*a.t;
             velZ += a.z*a.t;

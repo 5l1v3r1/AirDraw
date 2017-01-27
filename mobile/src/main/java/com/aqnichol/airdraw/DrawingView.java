@@ -91,7 +91,7 @@ public class DrawingView extends View {
         }
 
         public float convertY(Absolute a) {
-            return (a.z - bounds.minZ) * scale;
+            return (bounds.depth - (a.z - bounds.minZ)) * scale;
         }
     }
 }

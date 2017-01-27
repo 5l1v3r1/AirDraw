@@ -29,11 +29,14 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 
     private static final int SENSOR_DELAY = SensorManager.SENSOR_DELAY_GAME;
     private static final int CONNECTION_TIMEOUT = 5000;
+    private static final float HIGH_PASS_RATE = 0.2f;
 
     private TextView mainLabel;
     private SensorManager sensorManager;
-    private Sensor sensor;
+    private Sensor motionSensor;
     private long lastTimestamp = 0;
+
+    private float gravityX = 0, gravityY = 0, gravityZ = 0;
 
     private ArrayList<Movement> path;
 
@@ -49,8 +52,8 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             mainLabel.setText(R.string.sensor_error);
             return;
         }
-        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        if (sensor == null) {
+        motionSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        if (motionSensor == null) {
             mainLabel.setText(R.string.sensor_error);
             return;
         }
@@ -69,8 +72,6 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         } else {
             stopTracking();
         }
-
-        sensorManager.registerListener(this, sensor, SENSOR_DELAY);
     }
 
     protected void startTracking() {
@@ -78,7 +79,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         lastTimestamp = -1;
 
         mainLabel.setText(R.string.tap_to_stop);
-        sensorManager.registerListener(this, sensor, SENSOR_DELAY);
+        sensorManager.registerListener(this, motionSensor, SENSOR_DELAY);
     }
 
     protected void stopTracking() {
@@ -102,12 +103,18 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         if (path == null) {
             return;
         }
+
+        gravityX = gravityX + HIGH_PASS_RATE*(event.values[0] - gravityX);
+        gravityY = gravityY + HIGH_PASS_RATE*(event.values[1] - gravityY);
+        gravityZ = gravityZ + HIGH_PASS_RATE*(event.values[2] - gravityZ);
+
         float duration = 0;
         if (lastTimestamp > 0) {
             duration = (float)(event.timestamp - lastTimestamp) / 1e9f;
         }
         lastTimestamp = event.timestamp;
-        path.add(new Movement(duration, event.values[0], event.values[1], event.values[2]));
+        path.add(new Movement(duration, event.values[0]-gravityX, event.values[1]-gravityY,
+                event.values[2]-gravityZ));
     }
 
     @Override
