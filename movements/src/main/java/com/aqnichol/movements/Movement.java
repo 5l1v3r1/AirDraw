@@ -24,10 +24,10 @@ public class Movement {
     }
 
     public Movement(float t, float x, float y, float z) {
-        t = t;
-        x = x;
-        y = y;
-        z = z;
+        this.t = t;
+        this.x = x;
+        this.y = y;
+        this.z = z;
     }
 
     public static byte[] marshal(Movement[] movements) {
