@@ -12,15 +12,23 @@ import android.view.View;
 import android.widget.TextView;
 
 import com.aqnichol.movements.Movement;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.wearable.MessageApi;
+import com.google.android.gms.wearable.Node;
+import com.google.android.gms.wearable.NodeApi;
+import com.google.android.gms.wearable.Wearable;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends WearableActivity implements SensorEventListener {
 
-    private static final int sensorDelay = SensorManager.SENSOR_DELAY_GAME;
+    private static final int SENSOR_DELAY = SensorManager.SENSOR_DELAY_GAME;
+    private static final int CONNECTION_TIMEOUT = 5000;
 
     private TextView mainLabel;
     private SensorManager sensorManager;
@@ -62,7 +70,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             stopTracking();
         }
 
-        sensorManager.registerListener(this, sensor, sensorDelay);
+        sensorManager.registerListener(this, sensor, SENSOR_DELAY);
     }
 
     protected void startTracking() {
@@ -70,7 +78,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         lastTimestamp = -1;
 
         mainLabel.setText(R.string.tap_to_stop);
-        sensorManager.registerListener(this, sensor, sensorDelay);
+        sensorManager.registerListener(this, sensor, SENSOR_DELAY);
     }
 
     protected void stopTracking() {
@@ -83,7 +91,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         new Thread(new Runnable() {
             @Override
             public void run() {
-                // TODO: send data to the phone.
+                sendData(data);
             }
         }).start();
         path = null;
@@ -104,5 +112,45 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
+    }
+
+    private void sendData(final byte[] data) {
+        GoogleApiClient client = new GoogleApiClient.Builder(getApplicationContext())
+                .addApi(Wearable.API)
+                .build();
+        client.blockingConnect(CONNECTION_TIMEOUT, TimeUnit.MILLISECONDS);
+        if (!client.isConnected()) {
+            displayError("Could not connect");
+            return;
+        }
+        try {
+            NodeApi.GetConnectedNodesResult result;
+            result = Wearable.NodeApi.getConnectedNodes(client).await();
+            if (!result.getStatus().isSuccess()) {
+                displayError("Could not get nodes");
+                return;
+            }
+            List<Node> nodes = result.getNodes();
+            if (nodes.size() == 0) {
+                displayError("No connected devices");
+                return;
+            }
+            MessageApi.SendMessageResult r = Wearable.MessageApi.sendMessage(client,
+                    nodes.get(0).getId(), "/movements", data).await();
+            if (!r.getStatus().isSuccess()) {
+                displayError("Could not send data");
+            }
+        } finally {
+            client.disconnect();
+        }
+    }
+
+    private void displayError(final String message) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mainLabel.setText(message);
+            }
+        });
     }
 }
