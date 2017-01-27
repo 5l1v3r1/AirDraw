@@ -73,21 +73,25 @@ public class DrawingView extends View {
 
     private class Translator {
         private Absolute.BoundingBox bounds;
-        private float xScale;
-        private float yScale;
+        private float scale;
 
         public Translator() {
             bounds = Absolute.bounds(path);
-            xScale = (float)getWidth() / bounds.width;
-            yScale = (float)getHeight() / bounds.depth;
+            float xScale = (float)getWidth() / bounds.height;
+            float yScale = (float)getHeight() / bounds.depth;
+            if (xScale < yScale) {
+                scale = xScale;
+            } else {
+                scale = yScale;
+            }
         }
 
         public float convertX(Absolute a) {
-            return (a.x - bounds.minX) * xScale;
+            return (a.y - bounds.minY) * scale;
         }
 
         public float convertY(Absolute a) {
-            return (a.z - bounds.minZ) * yScale;
+            return (a.z - bounds.minZ) * scale;
         }
     }
 }

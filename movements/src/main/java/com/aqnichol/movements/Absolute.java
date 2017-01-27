@@ -34,12 +34,12 @@ public class Absolute {
         Absolute[] res = new Absolute[accel.length];
         for (int i = 0; i < accel.length; ++i) {
             Movement a = accel[i];
-            x += velX;
-            y += velY;
-            z += velZ;
-            velX += a.x;
-            velY += a.y;
-            velZ += a.z;
+            x += velX*a.t;
+            y += velY*a.t;
+            z += velZ*a.t;
+            velX += a.x*a.t;
+            velY += a.y*a.t;
+            velZ += a.z*a.t;
             res[i] = new Absolute(x, y, z);
         }
         return res;
