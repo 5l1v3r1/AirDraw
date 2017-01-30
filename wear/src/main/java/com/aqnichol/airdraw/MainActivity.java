@@ -7,22 +7,18 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.support.wearable.activity.WearableActivity;
-import android.support.wearable.view.BoxInsetLayout;
 import android.view.View;
 import android.widget.TextView;
 
-import com.aqnichol.movements.Movement;
+import com.aqnichol.movements.Absolute;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.wearable.MessageApi;
 import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.Wearable;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends WearableActivity implements SensorEventListener {
@@ -34,11 +30,9 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     private TextView mainLabel;
     private SensorManager sensorManager;
     private Sensor motionSensor;
-    private long lastTimestamp = 0;
+    private Matrix calibration = null;
 
-    private float gravityX = 0, gravityY = 0, gravityZ = 0;
-
-    private ArrayList<Movement> path;
+    private ArrayList<Absolute> path;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,7 +46,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             mainLabel.setText(R.string.sensor_error);
             return;
         }
-        motionSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        motionSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
         if (motionSensor == null) {
             mainLabel.setText(R.string.sensor_error);
             return;
@@ -76,7 +70,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 
     protected void startTracking() {
         path = new ArrayList<>();
-        lastTimestamp = -1;
+        calibration = null;
 
         mainLabel.setText(R.string.tap_to_stop);
         sensorManager.registerListener(this, motionSensor, SENSOR_DELAY);
@@ -86,9 +80,9 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         sensorManager.unregisterListener(this);
         mainLabel.setText(R.string.tap_to_start);
 
-        Movement[] array = new Movement[path.size()];
+        Absolute[] array = new Absolute[path.size()];
         path.toArray(array);
-        final byte[] data = Movement.marshal(array);
+        final byte[] data = Absolute.marshal(array);
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -104,17 +98,15 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             return;
         }
 
-        gravityX = gravityX + HIGH_PASS_RATE*(event.values[0] - gravityX);
-        gravityY = gravityY + HIGH_PASS_RATE*(event.values[1] - gravityY);
-        gravityZ = gravityZ + HIGH_PASS_RATE*(event.values[2] - gravityZ);
-
-        float duration = 0;
-        if (lastTimestamp > 0) {
-            duration = (float)(event.timestamp - lastTimestamp) / 1e9f;
+        Matrix rot = new Matrix(event.values[0], event.values[1], event.values[2]);
+        if (calibration == null) {
+            calibration = rot;
+            calibration.transpose();
+            return;
         }
-        lastTimestamp = event.timestamp;
-        path.add(new Movement(duration, event.values[0]-gravityX, event.values[1]-gravityY,
-                event.values[2]-gravityZ));
+        Matrix.Vector rotMe = new Matrix.Vector(1, 0, 0);
+        Matrix.Vector newPoint = rot.apply(calibration.apply(rotMe));
+        path.add(new Absolute(newPoint.x, newPoint.y, newPoint.z));
     }
 
     @Override

@@ -1,9 +1,17 @@
 package com.aqnichol.movements;
 
+import java.nio.ByteBuffer;
+
 /**
  * An "absolute" position in space.
  */
 public class Absolute {
+    public static class UnmarshalException extends Exception {
+        UnmarshalException(String message) {
+            super(message);
+        }
+    }
+
     public static class BoundingBox {
         public float minX = 0;
         public float minY = 0;
@@ -17,30 +25,39 @@ public class Absolute {
     public float y;
     public float z;
 
+    public Absolute() {
+        x = 0;
+        y = 0;
+        z = 0;
+    }
+
     public Absolute(float x, float y, float z) {
         this.x = x;
         this.y = y;
         this.z = z;
     }
 
-    /**
-     * Approximate the double integral of accelerations to produce
-     * absolute positions.
-     * @return The absolute positions.
-     */
-    public static Absolute[] integrate(Movement[] accel) {
-        float velX = 0, velY = 0, velZ = 0;
-        float x = 0, y = 0, z = 0;
-        Absolute[] res = new Absolute[accel.length];
-        for (int i = 0; i < accel.length; ++i) {
-            Movement a = accel[i];
-            x += velX*a.t + 0.5 * a.x * a.t * a.t;
-            y += velY*a.t + 0.5 * a.y * a.t * a.t;
-            z += velZ*a.t + 0.5 * a.z * a.t * a.t;
-            velX += a.x*a.t;
-            velY += a.y*a.t;
-            velZ += a.z*a.t;
-            res[i] = new Absolute(x, y, z);
+    public static byte[] marshal(Absolute[] abs) {
+        ByteBuffer res = ByteBuffer.allocate(12*abs.length);
+        for (Absolute a : abs) {
+            res.putFloat(a.x);
+            res.putFloat(a.y);
+            res.putFloat(a.z);
+        }
+        return res.array();
+    }
+
+    public static Absolute[] unmarshal(byte[] data) throws Absolute.UnmarshalException {
+        if (data.length % 12 != 0) {
+            throw new Absolute.UnmarshalException("invalid byte length: " + data.length);
+        }
+        ByteBuffer buf = ByteBuffer.wrap(data);
+        Absolute[] res = new Absolute[data.length / 12];
+        for (int i = 0; i < res.length; ++i) {
+            res[i] = new Absolute();
+            res[i].x = buf.getFloat();
+            res[i].y = buf.getFloat();
+            res[i].z = buf.getFloat();
         }
         return res;
     }
